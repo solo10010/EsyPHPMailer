@@ -19,13 +19,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         //Server settings
         $mail->SMTPDebug = SMTP::DEBUG_SERVER;                      //Enable verbose debug output
         $mail->isSMTP();                                            //Send using SMTP
-        $mail->Host       = 'mail.example.com';                     //Set the SMTP server to send through
-        $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
-        $mail->Username   = 'noreply@mail.example.com';                     //SMTP username
-        $mail->Password   = 'secret';                               //SMTP password
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
-        $mail->Port       = 465;                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 
+        // Set the SMTP server to send through
+        $mail->Host       = 'mail.example.com';
+
+        // Set connection type based on user selection
+        if ($_POST['connection_type'] == 'unsecured') {
+            $mail->SMTPSecure = false;
+            $mail->Port       = 25;
+            $connectionType = 'unsecured';
+        } elseif ($_POST['connection_type'] == 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port       = 465;
+            $connectionType = 'SSL (SMTPS)';
+        } elseif ($_POST['connection_type'] == 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+            $connectionType = 'TLS (STARTTLS)';
+        }
+
+        //Enable SMTP authentication
+        $mail->SMTPAuth   = true;
+        //SMTP username
+        $mail->Username   = 'portal@example.com';
+        //SMTP password
+        $mail->Password   = 'secret';
         //Recipients
         $mail->setFrom($_POST['from_email'], 'Mailer');
         $mail->addAddress($_POST['to_email']);                     //Add a recipient
@@ -42,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Send the email
         $mail->send();
-        echo 'Message has been sent';
+        echo 'Message has been sent using ' . $connectionType;
     } catch (Exception $e) {
         echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
     }
@@ -74,7 +92,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <label for="attachment">Прикрепить файл:</label><br>
         <input type="file" id="attachment" name="attachment"><br><br>
 
+        <input type="radio" id="unsecured" name="connection_type" value="unsecured" checked>
+        <label for="unsecured">Unsecured port 25</label><br>
+
+        <input type="radio" id="ssl" name="connection_type" value="ssl">
+        <label for="ssl">SSL (SMTPS) port 465</label><br>
+
+        <input type="radio" id="tls" name="connection_type" value="tls">
+        <label for="tls">TLS (STARTTLS) port 587</label><br><br>
+
         <input type="submit" value="Отправить">
     </form>
 </body>
 </html>
+<?php
+// Функция для проверки доступности порта на заданном IP
+function checkPort($ip, $port) {
+    // Попытка установить соединение с портом
+    $connection = @fsockopen($ip, $port, $errno, $errstr, 2);
+    if ($connection) {
+        // Порт доступен
+        fclose($connection);
+        return true;
+    } else {
+        // Порт недоступен
+        return false;
+    }
+}
+
+// IP-адрес для проверки
+$ip = '8.2.9.2';
+
+// Порты для проверки
+$ports = array(25, 465, 587);
+
+// Проверяем каждый порт
+foreach ($ports as $port) {
+    if (checkPort($ip, $port)) {
+        echo "Порт $port доступен<br>";
+    } else {
+        echo "Порт $port недоступен<br>";
+    }
+}
+?>
